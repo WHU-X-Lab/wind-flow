@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>DEMO2</title>
+    <script type="text/javascript" src="./libs/stats.js"></script>
+    <script type="text/javascript" src="./libs/dat.gui.js"></script>
+    <script type="text/javascript" src="./libs/jquery.min.js"></script>
+    <style>
+        body {
+            /* set margin to 0 and overflow to hidden, to go fullscreen */
+            margin: 0;
+            overflow: hidden;
+            background-color: #fff;
+        }
+
+        #display, #bg {
+            position: absolute;
+            left: 120px;
+            top: 20px;
+
+            width: 900px;
+            height: 600px;
+        }
+
+        #bg {
+            /* display: none; */
+        }
+
+        #legend {
+            display: none;
+            position: absolute;
+            right: 30px;
+            top: 90%;
+
+            width: 250px;
+            height: 10px;
+            background: rgb(40, 40, 40);
+        }
+
+
+    </style>
+</head>
+<body>
+<div id="Stats-output"></div>
+<canvas id="display" style="width:900,height:600" width="1800" height="1200"></canvas>
+<img id="bg" src="./textures/bg.png" alt="background-picture" draggable="false">
+<div id="legend"></div>
+
+<script src="./data/wind-data.js"></script>
+<script src="./js/projection.js"></script>
+<script src="./js/windModules.js"></script>
+<script>
+    window.onload = function(){
+        var stats = initStats(),
+            field = new VectorField(windData).read(),
+            canvas = document.getElementById('display'),
+            mapProjection = new ScaledAlbers(2200, -250, canvas.height-250, -130, 23.5),
+            ASSETS = initGUI(field, canvas, mapProjection, stats);
+
+        DISPLAY = new MotionDisplay(canvas, field, mapProjection, ASSETS, stats);
+        DISPLAY.render();
+    }
+
+    function initStats() {
+        var stats = new Stats();
+        stats.setMode(0); // 0: fps, 1: ms
+
+        // Align top-left
+        stats.domElement.style.position = 'absolute';
+        stats.domElement.style.left = '0px';
+        stats.domElement.style.top = '0px';
+        stats.domElement.style['z-index'] = '100';
+
+        document.getElementById("Stats-output").appendChild(stats.domElement);
+
+        return stats;
+    }
+
+    function initGUI(field, canvas, mapProjection, stats) {
+        var ASSETS = new function(){
+            this.speed = 0.01;
+            this.numParticles = 15000;
+            this.age = 40;
+            this.lineWidth = 3;
+            this.opacityDelta = 0.1;
+            this.frequency = 12;
+
+            // phsyics assets
+            this.acceleratable = false;
+            this.accelerateV = 0.01;
+            this.fricable = false;
+            this.frictionScale = 0.01;
+
+            // color assets
+            this.colorMode = "none";
+            this.colorThreshHold = 0.05;
+            this.gradientStartClr = "#75E0BD";
+            this.gradientMidClr = "#EEEEB2";
+            this.gradientEndClr = "#D51502";
+
+            // url
+            this.url = function(){window.location = './index.html'}
+
+        };
+        var gui = new dat.GUI();
+        //gui.remember(ASSETS);
+        var redraw = function() {
+            DISPLAY = new MotionDisplay(canvas, field, mapProjection, ASSETS, stats, false);
+            if(ASSETS.colorMode == "gradient"){
+                $('#legend').show();
+                gFolder.open();
+            }else{
+                $('#legend').hide();
+                gFolder.close();
+            }
+        };
+        gui.add(ASSETS,'age', 20, 100).onFinishChange(redraw);
+        gui.add(ASSETS,'speed', 0.01, 0.2).step(0.01).onFinishChange(redraw);
+        gui.add(ASSETS,'lineWidth', 1, 5).step(1).onFinishChange(redraw);
+        gui.add(ASSETS,'numParticles', 5000, 50000).onFinishChange(redraw);
+        gui.add(ASSETS,'opacityDelta', 0.01, 0.5).step(0.01).onFinishChange(redraw);
+
+        var cFolder = gui.addFolder('颜色设置');
+        cFolder.add(ASSETS,'colorMode',['none','gradient','condition']).onChange(redraw);
+        var gFolder = cFolder.addFolder('gradient模式设置');
+        gFolder.add(ASSETS,'colorThreshHold', 0.01, 0.5).name('渐变间隔').onChange(redraw);
+        gFolder.addColor(ASSETS,'gradientStartClr').name('起始颜色').onChange(redraw);
+        gFolder.addColor(ASSETS,'gradientMidClr').name('过渡颜色').onChange(redraw);
+        gFolder.addColor(ASSETS,'gradientEndClr').name('结束颜色').onChange(redraw);
+
+        var aFolder = gui.addFolder('物理引擎');
+        aFolder.add(ASSETS,'acceleratable').name('启用加速度').onChange(redraw);
+        aFolder.add(ASSETS,'fricable').name('启用摩擦力').onChange(redraw);
+        aFolder.add(ASSETS,'accelerateV', 0.001, 1).name('加速度大小').onChange(redraw);
+        aFolder.add(ASSETS,'frictionScale', 0.001, 1).name('摩擦力大小').onChange(redraw);
+
+        var oFolder  =gui.addFolder('其他');
+        oFolder.add(ASSETS,'url').name('查看webGL版本');
+        return ASSETS;
+    }
+
+</script>
+</body>
+</html>
